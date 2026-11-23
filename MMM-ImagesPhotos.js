@@ -99,6 +99,10 @@ Module.register(ourModuleName, {
 	},
 	startTimer() {
 		const self = this;
+		// One timer at a time, or an extra call would change the picture twice.
+		if (self.timer !== null) {
+			clearTimeout(self.timer);
+		}
 		self.timer = setTimeout(() => {
 			// Clear timer value for resume
 			self.timer = null;
@@ -224,7 +228,13 @@ Module.register(ourModuleName, {
 	resume() {
 		this.suspended = false;
 		if (this.timer === null) {
-			this.startTimer();
+			if (this.loaded) {
+				// Show a picture as soon as the module is back, and not one
+				// interval later. Drawing it starts the timer for the next one.
+				this.updateDom(0);
+			} else {
+				this.startTimer();
+			}
 		}
 	},
 
@@ -604,10 +614,11 @@ Module.register(ourModuleName, {
 	processPhotos(data) {
 		const self = this;
 		this.photos = data;
-		if (this.loaded === false) {
-			if (this.suspended === false) {
-				self.updateDom(self.config.animationSpeed);
-			}
+		// Draw when the first list arrives, and also when pictures arrive for
+		// a frame that has none on screen (a folder that was empty at the start).
+		const waiting = this.timer === null && data.length > 0;
+		if (this.suspended === false && (this.loaded === false || waiting)) {
+			self.updateDom(self.config.animationSpeed);
 		}
 		this.loaded = true;
 		
